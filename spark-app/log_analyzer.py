@@ -1,10 +1,27 @@
 import json
 import time
-import winsound  # Built-in Windows library - NO INSTALL NEEDED
-from kafka import KafkaConsumer
+import platform
 from collections import defaultdict
 from datetime import datetime, timedelta
-from elasticsearch import Elasticsearch
+
+try:
+    from kafka import KafkaConsumer
+except ImportError:
+    KafkaConsumer = None
+
+try:
+    from elasticsearch import Elasticsearch
+except ImportError:
+    Elasticsearch = None
+
+# Import winsound only on Windows - it's not available on Linux/Mac
+if platform.system() == 'Windows':
+    try:
+        import winsound
+    except ImportError:
+        winsound = None
+else:
+    winsound = None
 
 # ==================== ADD COLOR CLASS ====================
 class Colors:
@@ -90,10 +107,13 @@ last_reset_time = datetime.now()
 def play_alert_sound(alert):
     """Play sound for critical alerts"""
     if alert['severity'] == 'CRITICAL':
-        try:
-            winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
-            print(f"    {Colors.RED}🔔 CRITICAL ALERT SOUND PLAYED!{Colors.END}")
-        except:
+        if winsound is not None:
+            try:
+                winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
+                print(f"    {Colors.RED}🔔 CRITICAL ALERT SOUND PLAYED!{Colors.END}")
+            except Exception:
+                print(f"    {Colors.YELLOW}🔔 Sound alert (simulated){Colors.END}")
+        else:
             print(f"    {Colors.YELLOW}🔔 Sound alert (simulated){Colors.END}")
 
 # ==================== ENHANCEMENT: GEO-LOCATION ====================
@@ -201,7 +221,7 @@ def analyze_security_log(log_data):
     # Convert string timestamp to datetime object
     try:
         log_time = datetime.strptime(log_data.get('timestamp'), '%Y-%m-%d %H:%M:%S')
-    except:
+    except (ValueError, TypeError):
         log_time = datetime.now()
     
     # ==================== ENHANCEMENT: ADD GEO-LOCATION ====================
